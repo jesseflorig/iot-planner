@@ -9,11 +9,35 @@ import {
 } from '../svg/breadboardLayout'
 import { PinTooltip } from './PinTooltip'
 
-const PIN_FILL: Record<string, string> = {
-  available: '#a1a1aa',  // zinc-400
-  'in-use':  '#0ea5e9',  // sky-500
-  error:     '#f59e0b',  // amber-400
-  power:     '#52525b',  // zinc-600
+// Adafruit-scheme function colors (adapted for dark mode)
+const FUNC_COLORS: Record<string, string> = {
+  gnd:     '#52525b',  // zinc-600
+  power:   '#f87171',  // red-400
+  control: '#a78bfa',  // violet-400
+  adc:     '#4ade80',  // green-400  — matches Adafruit #24FF24
+  i2c:     '#2dd4bf',  // teal-400   — matches Adafruit #009292
+  spi:     '#93c5fd',  // blue-300   — matches Adafruit #B6DBFF
+  uart:    '#60a5fa',  // blue-400   — matches Adafruit #6DB6FF
+  pwm:     '#c084fc',  // purple-400 — matches Adafruit #B66DFF
+  gpio:    '#facc15',  // yellow-400 — matches Adafruit #FFFF6D
+}
+
+const POWER_FNS = new Set(['POWER_3V3', 'POWER_5V', 'POWER_BAT', 'USB_5V'])
+const CONTROL_FNS = new Set(['RESET', 'POWER_EN'])
+const I2C_FNS = new Set(['I2C_SDA', 'I2C_SCL'])
+const SPI_FNS = new Set(['SPI_SCK', 'SPI_MOSI', 'SPI_MISO', 'SPI_CS'])
+const UART_FNS = new Set(['UART_TX', 'UART_RX'])
+
+function pinFunctionColor(fns: string[]): string {
+  if (fns.includes('GND'))                    return FUNC_COLORS.gnd
+  if (fns.some(f => POWER_FNS.has(f)))        return FUNC_COLORS.power
+  if (fns.some(f => CONTROL_FNS.has(f)))      return FUNC_COLORS.control
+  if (fns.includes('ADC') || fns.includes('AREF')) return FUNC_COLORS.adc
+  if (fns.some(f => I2C_FNS.has(f)))          return FUNC_COLORS.i2c
+  if (fns.some(f => SPI_FNS.has(f)))          return FUNC_COLORS.spi
+  if (fns.some(f => UART_FNS.has(f)))         return FUNC_COLORS.uart
+  if (fns.includes('PWM'))                    return FUNC_COLORS.pwm
+  return FUNC_COLORS.gpio
 }
 
 const MODULE_BORDER: Record<string, string> = {
@@ -233,7 +257,10 @@ export function BreadboardView() {
               cx={pin.x}
               cy={pin.y}
               r={PIN_RADIUS}
-              fill={PIN_FILL[pin.status]}
+              fill={pin.status === 'error' ? '#f59e0b' : pinFunctionColor(pin.functions)}
+              fillOpacity={pin.status === 'available' ? 0.45 : 1}
+              stroke={pin.status === 'in-use' ? '#ffffff' : 'none'}
+              strokeWidth={1.5}
             />
             <text
               x={pin.x + (pin.id.startsWith('right') ? -10 : 10)}
