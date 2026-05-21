@@ -71,11 +71,12 @@ export function moduleToSvg(
   module: Module,
   instance: ModuleInstance,
   index: number,
+  startX = MODULE_OFFSET_X,
 ): ModuleLayout {
   const width = 120
   const pinRows = module.requiredPinLabels.length * 16
   const height = 12 + 16 + pinRows + 10  // top padding + error-text reserve + pins + bottom
-  const x = MODULE_OFFSET_X + index * (width + 16)
+  const x = startX + index * (width + 16)
   const y = BOARD_OFFSET_Y
 
   return {
@@ -89,10 +90,10 @@ export function moduleToSvg(
   }
 }
 
-export function svgViewBox(board: Board, moduleCount: number): string {
-  const boardWidth = BOARD_OFFSET_X * 2 + PIN_SPACING + HEADER_GAP + PIN_SPACING
-  const moduleWidth = moduleCount > 0 ? moduleCount * (120 + 16) + 60 : 0
-  const width = boardWidth + moduleWidth + 40
+export function svgViewBox(board: Board, moduleCount: number, moduleStartX = MODULE_OFFSET_X, originX = 0): string {
+  const moduleWidth = moduleCount > 0 ? moduleCount * (120 + 16) + 20 : 0
+  const contentRight = moduleCount > 0 ? moduleStartX + moduleWidth : moduleStartX + 40
+  const width = contentRight - originX
   const height = BOARD_OFFSET_Y * 2 + board.headerLength * PIN_SPACING
-  return `0 0 ${width} ${height}`
+  return `${originX} 0 ${width} ${height}`
 }

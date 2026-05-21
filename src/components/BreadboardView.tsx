@@ -4,7 +4,7 @@ import { getBoardById } from '../data/boards'
 import { getModuleById } from '../data/modules'
 import {
   boardToSvg, moduleToSvg, svgViewBox,
-  PIN_RADIUS, PIN_SPACING, BOARD_OFFSET_X, BOARD_INSET, BOARD_OFFSET_Y, HEADER_GAP,
+  PIN_RADIUS, PIN_SPACING, BOARD_OFFSET_X, BOARD_INSET, BOARD_OFFSET_Y, HEADER_GAP, MODULE_OFFSET_X,
   type PinLayout,
 } from '../svg/breadboardLayout'
 import { PinTooltip } from './PinTooltip'
@@ -54,29 +54,42 @@ export function BreadboardView() {
   if (!board) return <div className="text-zinc-500 p-8">Board not found.</div>
 
   const pinLayouts = boardToSvg(board, pinAssignments, moduleInstances)
-  const allModuleLayouts = moduleInstances.map((inst, idx) => {
-    const mod = getModuleById(inst.moduleId)
-    if (!mod) return null
-    return { layout: moduleToSvg(mod, inst, idx), mod, inst }
-  }).filter(Boolean) as { layout: ReturnType<typeof moduleToSvg>; mod: ReturnType<typeof getModuleById> & {}; inst: typeof moduleInstances[number] }[]
-
-  const pinIdToLabel = new Map(pinLayouts.map(p => [p.id, p.label]))
 
   const gridRows = board.headerLength
   const leftX = BOARD_OFFSET_X
   const rightX = BOARD_OFFSET_X + PIN_SPACING + HEADER_GAP
 
   // Orthogonal wire routing with hop arcs at crossings
+  const STUB            = PIN_SPACING          // horizontal extension before first turn
   const BOARD_RIGHT_EDGE = rightX + 16         // right edge of board rect
-  const X_LEFT_CHAN     = leftX - 28           // left routing channel (outside board)
-  const CHAN_START      = BOARD_RIGHT_EDGE + 8 // first vertical channel in gap
-  const CHAN_STEP       = 8
+  const X_LEFT_CHAN     = BOARD_OFFSET_X - BOARD_INSET - STUB // left routing channel (outside board)
+  const CHAN_START      = BOARD_RIGHT_EDGE + STUB // first vertical channel in gap
+  const CHAN_STEP       = 16
+
+  const totalWireChannels = moduleInstances
+    .filter(inst => inst.status === 'healthy')
+    .reduce((sum, inst) => {
+      const mod = getModuleById(inst.moduleId)
+      return sum + (mod?.requiredPinLabels.length ?? 0)
+    }, 0)
+  const moduleStartX = totalWireChannels > 0
+    ? CHAN_START + totalWireChannels * CHAN_STEP + 16
+    : MODULE_OFFSET_X
+
+  const allModuleLayouts = moduleInstances.map((inst, idx) => {
+    const mod = getModuleById(inst.moduleId)
+    if (!mod) return null
+    return { layout: moduleToSvg(mod, inst, idx, moduleStartX), mod, inst }
+  }).filter(Boolean) as { layout: ReturnType<typeof moduleToSvg>; mod: ReturnType<typeof getModuleById> & {}; inst: typeof moduleInstances[number] }[]
+
+  const pinIdToLabel = new Map(pinLayouts.map(p => [p.id, p.label]))
   const HOP_R           = 4
   const BOARD_BOTTOM_Y  = BOARD_OFFSET_Y - 14 + gridRows * PIN_SPACING
 
   type WireSeg = { type: 'h' | 'v'; x1: number; y1: number; x2: number; y2: number; wire: string; si: number }
   const wireSegs: WireSeg[] = []
   let chanIdx = 0
+  let chanLeftIdx = 0
 
   for (const { layout, mod, inst } of allModuleLayouts) {
     if (inst.status !== 'healthy') continue
@@ -86,15 +99,16 @@ export function BreadboardView() {
       if (!boardPin) continue
       const wKey = `${mod.id}-${label}`
       const xChan = CHAN_START + chanIdx * CHAN_STEP
+      const xLeftChan = X_LEFT_CHAN - chanLeftIdx * CHAN_STEP
       const dotX = layout.x
       const dotY = layout.y + 12 + i * 16
       const isLeft = boardPin.id.startsWith('left')
       const yBelow = BOARD_BOTTOM_Y + 16
 
       const raw: Array<['h' | 'v', number, number, number, number]> = isLeft ? [
-        ['h', boardPin.x, boardPin.y, X_LEFT_CHAN, boardPin.y],
-        ['v', X_LEFT_CHAN, boardPin.y, X_LEFT_CHAN, yBelow],
-        ['h', X_LEFT_CHAN, yBelow, xChan, yBelow],
+        ['h', boardPin.x, boardPin.y, xLeftChan, boardPin.y],
+        ['v', xLeftChan, boardPin.y, xLeftChan, yBelow],
+        ['h', xLeftChan, yBelow, xChan, yBelow],
         ['v', xChan, yBelow, xChan, dotY],
         ['h', xChan, dotY, dotX, dotY],
       ] : [
@@ -107,6 +121,7 @@ export function BreadboardView() {
         wireSegs.push({ type, x1, y1, x2, y2, wire: wKey, si })
       })
       chanIdx++
+      if (isLeft) chanLeftIdx++
     }
   }
 
@@ -131,9 +146,13 @@ export function BreadboardView() {
   // Build one SVG path string per wire
   const wirePaths = [...new Set(wireSegs.map(s => s.wire))].map(wKey => {
     const segs = wireSegs.filter(s => s.wire === wKey).sort((a, b) => a.si - b.si)
+    const r = HOP_R
     let d = `M ${segs[0].x1} ${segs[0].y1}`
-    for (const seg of segs) {
+    for (let idx = 0; idx < segs.length; idx++) {
+      const seg = segs[idx]
+      const next = segs[idx + 1]
       const hops = segHops.get(`${seg.wire}-${seg.si}`) ?? []
+
       if (seg.type === 'h' && hops.length > 0) {
         const goRight = seg.x2 > seg.x1
         for (const cx of hops) {
@@ -141,12 +160,34 @@ export function BreadboardView() {
           else         d += ` L ${cx + HOP_R} ${seg.y1} A ${HOP_R} ${HOP_R} 0 0 1 ${cx - HOP_R} ${seg.y1}`
         }
       }
-      d += ` L ${seg.x2} ${seg.y2}`
+
+      if (!next) {
+        d += ` L ${seg.x2} ${seg.y2}`
+        continue
+      }
+
+      // Rounded corner: stop r before the corner, arc into the next segment
+      if (seg.type === 'h') {
+        const goRight = seg.x2 > seg.x1
+        const goDown  = next.y2 > next.y1
+        const px = goRight ? seg.x2 - r : seg.x2 + r
+        const sweep = (goRight && goDown) || (!goRight && !goDown) ? 1 : 0
+        const ay = goDown ? seg.y2 + r : seg.y2 - r
+        d += ` L ${px} ${seg.y2} A ${r} ${r} 0 0 ${sweep} ${seg.x2} ${ay}`
+      } else {
+        const goDown  = seg.y2 > seg.y1
+        const goRight = next.x2 > next.x1
+        const py = goDown ? seg.y2 - r : seg.y2 + r
+        const sweep = goDown ? 0 : 1
+        const ax = goRight ? seg.x2 + r : seg.x2 - r
+        d += ` L ${seg.x2} ${py} A ${r} ${r} 0 0 ${sweep} ${ax} ${seg.y2}`
+      }
     }
     return { key: wKey, d }
   })
 
-  const viewBox = svgViewBox(board, moduleInstances.length)
+  const originX = chanLeftIdx > 0 ? X_LEFT_CHAN - (chanLeftIdx - 1) * CHAN_STEP - 8 : 0
+  const viewBox = svgViewBox(board, moduleInstances.length, moduleStartX, originX)
 
   return (
     <div className="relative w-full h-full overflow-auto bg-zinc-900">
