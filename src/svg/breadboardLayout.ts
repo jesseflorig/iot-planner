@@ -20,7 +20,7 @@ export interface PinLayout {
   status: PinStatus
   x: number
   y: number
-  moduleId: string | null
+  moduleIds: string[]
 }
 
 export interface ModuleLayout {
@@ -53,7 +53,6 @@ export function boardToSvg(board: Board, assignments: PinAssignment[], instances
     let status: PinStatus = pinStatus(pin, assignments)
     if (errorPinIds.has(pin.id)) status = 'error'
 
-    const assignment = assignments.find(a => a.pinId === pin.id)
     return {
       id: pin.id,
       label: pin.label,
@@ -62,7 +61,7 @@ export function boardToSvg(board: Board, assignments: PinAssignment[], instances
       status,
       x,
       y,
-      moduleId: assignment?.moduleId ?? null,
+      moduleIds: assignments.filter(a => a.pinId === pin.id).map(a => a.moduleId),
     }
   })
 }

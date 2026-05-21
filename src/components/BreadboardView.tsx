@@ -95,7 +95,7 @@ export function BreadboardView() {
     if (inst.status !== 'healthy') continue
     for (let i = 0; i < mod.requiredPinLabels.length; i++) {
       const label = mod.requiredPinLabels[i]
-      const boardPin = pinLayouts.find(p => p.moduleId === mod.id && p.label === label)
+      const boardPin = pinLayouts.find(p => p.moduleIds.includes(mod.id) && p.label === label)
       if (!boardPin) continue
       const wKey = `${mod.id}-${label}`
       const xChan = CHAN_START + chanIdx * CHAN_STEP

@@ -1,4 +1,5 @@
 import type { PinLayout } from '../svg/breadboardLayout'
+import { getModuleById } from '../data/modules'
 
 interface Props {
   pin: PinLayout
@@ -7,7 +8,6 @@ interface Props {
 
 const STATUS_LABEL: Record<string, string> = {
   available: 'Available',
-  'in-use': 'In use',
   error: 'Conflict',
   power: 'Power / GND',
 }
@@ -24,6 +24,8 @@ export function PinTooltip({ pin, svgRef }: Props) {
   const top = screen.y - 12
   const left = screen.x + 14
 
+  const moduleNames = pin.moduleIds.map(id => getModuleById(id)?.name ?? id)
+
   const fnLabels = pin.functions
     .filter(f => !['GND', 'POWER_3V3', 'POWER_5V', 'POWER_BAT', 'POWER_EN', 'USB_5V', 'AREF', 'RESET'].includes(f))
     .map(f => f.replace('_', ' ').replace('SPI ', 'SPI/').replace('UART ', 'UART/').replace('I2C ', 'I2C/'))
@@ -37,14 +39,21 @@ export function PinTooltip({ pin, svgRef }: Props) {
       <div className="font-semibold text-zinc-100">{pin.label}</div>
       {pin.gpio !== null && <div className="text-zinc-400">GPIO {pin.gpio}</div>}
       {fnLabels && <div className="text-zinc-400">{fnLabels}</div>}
-      <div className={`mt-1 font-medium ${
-        pin.status === 'available' ? 'text-zinc-300' :
-        pin.status === 'in-use'   ? 'text-sky-400' :
-        pin.status === 'error'    ? 'text-amber-400' :
-        'text-slate-400'
-      }`}>
-        {STATUS_LABEL[pin.status]}
-      </div>
+      {moduleNames.length > 0 ? (
+        moduleNames.map(name => (
+          <div key={name} className={`mt-1 font-medium ${pin.status === 'error' ? 'text-amber-400' : 'text-sky-400'}`}>
+            {name}
+          </div>
+        ))
+      ) : (
+        <div className={`mt-1 font-medium ${
+          pin.status === 'available' ? 'text-zinc-300' :
+          pin.status === 'error'    ? 'text-amber-400' :
+          'text-slate-400'
+        }`}>
+          {STATUS_LABEL[pin.status]}
+        </div>
+      )}
     </div>
   )
 }
