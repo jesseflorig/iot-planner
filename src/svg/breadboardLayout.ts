@@ -6,6 +6,7 @@ export const PIN_RADIUS = 5
 export const PIN_SPACING = 24
 export const HEADER_GAP = 60   // gap between left and right header columns
 export const BOARD_OFFSET_X = 40
+export const BOARD_INSET = 16  // half-width of board border margin (pins sit on this edge)
 export const BOARD_OFFSET_Y = 30
 export const MODULE_OFFSET_X = BOARD_OFFSET_X + PIN_SPACING + HEADER_GAP + PIN_SPACING + 40
 
@@ -44,7 +45,9 @@ export function boardToSvg(board: Board, assignments: PinAssignment[], instances
 
   return board.pins.map(pin => {
     const col = pin.headerSide === 'left' ? 0 : 1
-    const x = BOARD_OFFSET_X + col * (PIN_SPACING + HEADER_GAP)
+    const x = col === 0
+      ? BOARD_OFFSET_X - BOARD_INSET
+      : BOARD_OFFSET_X + PIN_SPACING + HEADER_GAP + BOARD_INSET
     const y = BOARD_OFFSET_Y + (pin.position - 1) * PIN_SPACING
 
     let status: PinStatus = pinStatus(pin, assignments)

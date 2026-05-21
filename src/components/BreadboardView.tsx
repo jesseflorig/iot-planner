@@ -4,7 +4,7 @@ import { getBoardById } from '../data/boards'
 import { getModuleById } from '../data/modules'
 import {
   boardToSvg, moduleToSvg, svgViewBox,
-  PIN_RADIUS, PIN_SPACING, BOARD_OFFSET_X, BOARD_OFFSET_Y, HEADER_GAP,
+  PIN_RADIUS, PIN_SPACING, BOARD_OFFSET_X, BOARD_INSET, BOARD_OFFSET_Y, HEADER_GAP,
   type PinLayout,
 } from '../svg/breadboardLayout'
 import { PinTooltip } from './PinTooltip'
@@ -38,10 +38,91 @@ export function BreadboardView() {
 
   const pinIdToLabel = new Map(pinLayouts.map(p => [p.id, p.label]))
 
-  const viewBox = svgViewBox(board, moduleInstances.length)
   const gridRows = board.headerLength
   const leftX = BOARD_OFFSET_X
   const rightX = BOARD_OFFSET_X + PIN_SPACING + HEADER_GAP
+
+  // Orthogonal wire routing with hop arcs at crossings
+  const BOARD_RIGHT_EDGE = rightX + 16         // right edge of board rect
+  const X_LEFT_CHAN     = leftX - 28           // left routing channel (outside board)
+  const CHAN_START      = BOARD_RIGHT_EDGE + 8 // first vertical channel in gap
+  const CHAN_STEP       = 8
+  const HOP_R           = 4
+  const BOARD_BOTTOM_Y  = BOARD_OFFSET_Y - 14 + gridRows * PIN_SPACING
+
+  type WireSeg = { type: 'h' | 'v'; x1: number; y1: number; x2: number; y2: number; wire: string; si: number }
+  const wireSegs: WireSeg[] = []
+  let chanIdx = 0
+
+  for (const { layout, mod, inst } of allModuleLayouts) {
+    if (inst.status !== 'healthy') continue
+    for (let i = 0; i < mod.requiredPinLabels.length; i++) {
+      const label = mod.requiredPinLabels[i]
+      const boardPin = pinLayouts.find(p => p.moduleId === mod.id && p.label === label)
+      if (!boardPin) continue
+      const wKey = `${mod.id}-${label}`
+      const xChan = CHAN_START + chanIdx * CHAN_STEP
+      const dotX = layout.x
+      const dotY = layout.y + 12 + i * 16
+      const isLeft = boardPin.id.startsWith('left')
+      const yBelow = BOARD_BOTTOM_Y + 16
+
+      const raw: Array<['h' | 'v', number, number, number, number]> = isLeft ? [
+        ['h', boardPin.x, boardPin.y, X_LEFT_CHAN, boardPin.y],
+        ['v', X_LEFT_CHAN, boardPin.y, X_LEFT_CHAN, yBelow],
+        ['h', X_LEFT_CHAN, yBelow, xChan, yBelow],
+        ['v', xChan, yBelow, xChan, dotY],
+        ['h', xChan, dotY, dotX, dotY],
+      ] : [
+        ['h', boardPin.x, boardPin.y, xChan, boardPin.y],
+        ['v', xChan, boardPin.y, xChan, dotY],
+        ['h', xChan, dotY, dotX, dotY],
+      ]
+
+      raw.forEach(([type, x1, y1, x2, y2], si) => {
+        wireSegs.push({ type, x1, y1, x2, y2, wire: wKey, si })
+      })
+      chanIdx++
+    }
+  }
+
+  // For each horizontal segment, find crossing vertical segments from other wires
+  const segHops = new Map<string, number[]>()
+  for (const segH of wireSegs) {
+    if (segH.type !== 'h') continue
+    const xMin = Math.min(segH.x1, segH.x2), xMax = Math.max(segH.x1, segH.x2)
+    const hits: number[] = []
+    for (const segV of wireSegs) {
+      if (segV.type !== 'v' || segV.wire === segH.wire) continue
+      const xV = segV.x1
+      const yMin = Math.min(segV.y1, segV.y2), yMax = Math.max(segV.y1, segV.y2)
+      if (xV > xMin && xV < xMax && segH.y1 > yMin && segH.y1 < yMax) hits.push(xV)
+    }
+    if (hits.length) {
+      hits.sort((a, b) => segH.x2 > segH.x1 ? a - b : b - a)
+      segHops.set(`${segH.wire}-${segH.si}`, hits)
+    }
+  }
+
+  // Build one SVG path string per wire
+  const wirePaths = [...new Set(wireSegs.map(s => s.wire))].map(wKey => {
+    const segs = wireSegs.filter(s => s.wire === wKey).sort((a, b) => a.si - b.si)
+    let d = `M ${segs[0].x1} ${segs[0].y1}`
+    for (const seg of segs) {
+      const hops = segHops.get(`${seg.wire}-${seg.si}`) ?? []
+      if (seg.type === 'h' && hops.length > 0) {
+        const goRight = seg.x2 > seg.x1
+        for (const cx of hops) {
+          if (goRight) d += ` L ${cx - HOP_R} ${seg.y1} A ${HOP_R} ${HOP_R} 0 0 0 ${cx + HOP_R} ${seg.y1}`
+          else         d += ` L ${cx + HOP_R} ${seg.y1} A ${HOP_R} ${HOP_R} 0 0 1 ${cx - HOP_R} ${seg.y1}`
+        }
+      }
+      d += ` L ${seg.x2} ${seg.y2}`
+    }
+    return { key: wKey, d }
+  })
+
+  const viewBox = svgViewBox(board, moduleInstances.length)
 
   return (
     <div className="relative w-full h-full overflow-auto bg-zinc-900">
@@ -55,8 +136,8 @@ export function BreadboardView() {
         {Array.from({ length: gridRows }, (_, i) => (
           <g key={i}>
             <line
-              x1={leftX - 12} y1={BOARD_OFFSET_Y + i * PIN_SPACING}
-              x2={rightX + 12} y2={BOARD_OFFSET_Y + i * PIN_SPACING}
+              x1={leftX - BOARD_INSET} y1={BOARD_OFFSET_Y + i * PIN_SPACING}
+              x2={rightX + BOARD_INSET} y2={BOARD_OFFSET_Y + i * PIN_SPACING}
               stroke="#3f3f46" strokeWidth={0.5}
             />
           </g>
@@ -84,6 +165,18 @@ export function BreadboardView() {
         >
           {board.name}
         </text>
+
+        {/* Wires */}
+        {wirePaths.map(({ key, d }) => (
+          <path
+            key={`wire-${key}`}
+            d={d}
+            fill="none"
+            stroke="#0ea5e9"
+            strokeWidth={1}
+            strokeOpacity={0.6}
+          />
+        ))}
 
         {/* Module overlays */}
         {allModuleLayouts.map(({ layout, mod, inst }) => {
@@ -116,8 +209,8 @@ export function BreadboardView() {
                 const rowY = layout.y + (inst.status === 'error' ? 24 : 12) + i * 16
                 return (
                   <g key={label}>
-                    <circle cx={layout.x + 12} cy={rowY} r={3} fill={dotColor} />
-                    <text x={layout.x + 20} y={rowY + 4} fill={labelColor} fontSize={8} fontFamily="monospace">
+                    <circle cx={layout.x} cy={rowY} r={3} fill={dotColor} />
+                    <text x={layout.x + 8} y={rowY + 4} fill={labelColor} fontSize={8} fontFamily="monospace">
                       {label}
                     </text>
                   </g>
@@ -143,9 +236,9 @@ export function BreadboardView() {
               fill={PIN_FILL[pin.status]}
             />
             <text
-              x={pin.x + (pin.id.startsWith('right') ? 10 : -10)}
+              x={pin.x + (pin.id.startsWith('right') ? -10 : 10)}
               y={pin.y + 4}
-              textAnchor={pin.id.startsWith('right') ? 'start' : 'end'}
+              textAnchor={pin.id.startsWith('right') ? 'end' : 'start'}
               fill="#d4d4d8"
               fontSize={9}
               fontFamily="monospace"
