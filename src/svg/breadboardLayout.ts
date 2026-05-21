@@ -70,7 +70,8 @@ export function moduleToSvg(
   index: number,
 ): ModuleLayout {
   const width = 120
-  const height = module.breadboardSpan * PIN_SPACING
+  const pinRows = module.requiredPinLabels.length * 16
+  const height = 12 + 16 + pinRows + 10  // top padding + error-text reserve + pins + bottom
   const x = MODULE_OFFSET_X + index * (width + 16)
   const y = BOARD_OFFSET_Y
 
