@@ -33,6 +33,7 @@ function resolvePin(board: Board, requirement: string, claimedPinIds: Set<string
 export function allocatePins(
   board: Board,
   module: Module,
+  instanceId: string,
   existingAssignments: PinAssignment[],
 ): AllocationResult {
   const claimedPinIds = new Set(existingAssignments.map(a => a.pinId))
@@ -49,35 +50,42 @@ export function allocatePins(
       conflicts.push(pin.id)
       continue
     }
-    assignments.push({ pinId: pin.id, moduleId: module.id })
+    assignments.push({ pinId: pin.id, moduleInstanceId: instanceId })
     claimedPinIds.add(pin.id)
   }
 
   if (conflicts.length > 0) {
     return {
-      instance: { moduleId: module.id, status: 'error', conflicts },
+      instance: { instanceId, moduleId: module.id, status: 'error', conflicts },
       assignments: [],
     }
   }
 
   return {
-    instance: { moduleId: module.id, status: 'healthy', conflicts: [] },
+    instance: { instanceId, moduleId: module.id, status: 'healthy', conflicts: [] },
     assignments,
   }
 }
 
 export function reEvaluateAll(
   board: Board,
-  moduleIds: string[],
+  modules: Array<{ instanceId: string; moduleId: string }>,
   getModule: (id: string) => Module | undefined,
 ): { instances: ModuleInstance[]; assignments: PinAssignment[] } {
   const instances: ModuleInstance[] = []
   const assignments: PinAssignment[] = []
+  const prioritizedModules = [...modules].sort((a, b) => {
+    const moduleA = getModule(a.moduleId)
+    const moduleB = getModule(b.moduleId)
+    const priorityA = moduleA?.type === 'hat' ? 0 : 1
+    const priorityB = moduleB?.type === 'hat' ? 0 : 1
+    return priorityA - priorityB
+  })
 
-  for (const moduleId of moduleIds) {
-    const module = getModule(moduleId)
+  for (const entry of prioritizedModules) {
+    const module = getModule(entry.moduleId)
     if (!module) continue
-    const result = allocatePins(board, module, assignments)
+    const result = allocatePins(board, module, entry.instanceId, assignments)
     instances.push(result.instance)
     assignments.push(...result.assignments)
   }

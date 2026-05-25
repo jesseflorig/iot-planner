@@ -108,7 +108,7 @@ export function BreadboardView() {
 
   for (const { layout, mod, inst } of allModuleLayouts) {
     if (inst.status !== 'healthy') continue
-    const assignedPins = pinLayouts.filter(p => p.moduleIds.includes(mod.id))
+    const assignedPins = pinLayouts.filter(p => p.moduleInstanceIds.includes(inst.instanceId))
     const usedAssignedPinIds = new Set<string>()
 
     for (let i = 0; i < mod.requiredPinLabels.length; i++) {
@@ -120,7 +120,7 @@ export function BreadboardView() {
       })
       if (!boardPin) continue
       usedAssignedPinIds.add(boardPin.id)
-      const wKey = `${mod.id}-${requirement}-${boardPin.id}`
+      const wKey = `${inst.instanceId}-${requirement}-${boardPin.id}`
       const xChan = CHAN_START + chanIdx * CHAN_STEP
       const xLeftChan = X_LEFT_CHAN - chanLeftIdx * CHAN_STEP
       const dotX = layout.x
@@ -272,7 +272,7 @@ export function BreadboardView() {
         {allModuleLayouts.map(({ layout, mod, inst }) => {
           const conflictLabels = new Set(inst.conflicts.map(id => pinIdToLabel.get(id) ?? id))
           return (
-            <g key={layout.moduleId}>
+            <g key={inst.instanceId}>
               <rect
                 x={layout.x}
                 y={layout.y}

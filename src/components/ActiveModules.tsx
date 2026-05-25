@@ -22,7 +22,7 @@ export function ActiveModules() {
           const name = mod?.name ?? inst.moduleId
           const isError = inst.status === 'error'
           return (
-            <li key={inst.moduleId} className="flex items-start justify-between gap-2">
+            <li key={inst.instanceId} className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className={`text-xs w-2 h-2 rounded-full shrink-0 ${isError ? 'bg-amber-400' : 'bg-sky-500'}`} />
@@ -38,7 +38,7 @@ export function ActiveModules() {
                 )}
               </div>
               <button
-                onClick={() => removeModule(inst.moduleId)}
+                onClick={() => removeModule(inst.instanceId)}
                 className="shrink-0 text-xs px-2 py-0.5 rounded border border-zinc-600 text-zinc-400 hover:border-red-500 hover:text-red-400 transition-colors"
                 aria-label={`Remove ${name}`}
               >

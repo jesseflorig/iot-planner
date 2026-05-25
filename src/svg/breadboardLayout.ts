@@ -20,7 +20,7 @@ export interface PinLayout {
   status: PinStatus
   x: number
   y: number
-  moduleIds: string[]
+  moduleInstanceIds: string[]
 }
 
 export interface ModuleLayout {
@@ -61,7 +61,7 @@ export function boardToSvg(board: Board, assignments: PinAssignment[], instances
       status,
       x,
       y,
-      moduleIds: assignments.filter(a => a.pinId === pin.id).map(a => a.moduleId),
+      moduleInstanceIds: assignments.filter(a => a.pinId === pin.id).map(a => a.moduleInstanceId),
     }
   })
 }
@@ -77,7 +77,7 @@ export function moduleToSvg(
   const height = 12 + 16 + pinRows + 10  // top padding + error-text reserve + pins + bottom
 
   return {
-    moduleId: module.id,
+    moduleId: instance.instanceId,
     name: module.name,
     status: instance.status,
     x,

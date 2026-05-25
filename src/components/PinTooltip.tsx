@@ -1,5 +1,6 @@
 import type { PinLayout } from '../svg/breadboardLayout'
 import { getModuleById } from '../data/modules'
+import { usePlannerStore } from '../store/plannerStore'
 
 interface Props {
   pin: PinLayout
@@ -13,6 +14,7 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 export function PinTooltip({ pin, svgRef }: Props) {
+  const { moduleInstances } = usePlannerStore()
   const svg = svgRef.current
   if (!svg) return null
 
@@ -24,7 +26,10 @@ export function PinTooltip({ pin, svgRef }: Props) {
   const top = screen.y - 12
   const left = screen.x + 14
 
-  const moduleNames = pin.moduleIds.map(id => getModuleById(id)?.name ?? id)
+  const moduleNames = pin.moduleInstanceIds.map(instanceId => {
+    const instance = moduleInstances.find(mod => mod.instanceId === instanceId)
+    return instance ? (getModuleById(instance.moduleId)?.name ?? instance.moduleId) : instanceId
+  })
 
   const fnLabels = pin.functions
     .filter(f => !['GND', 'POWER_3V3', 'POWER_5V', 'POWER_BAT', 'POWER_EN', 'USB_5V', 'AREF', 'RESET'].includes(f))
@@ -40,8 +45,8 @@ export function PinTooltip({ pin, svgRef }: Props) {
       {pin.gpio !== null && <div className="text-zinc-400">GPIO {pin.gpio}</div>}
       {fnLabels && <div className="text-zinc-400">{fnLabels}</div>}
       {moduleNames.length > 0 ? (
-        moduleNames.map(name => (
-          <div key={name} className={`mt-1 font-medium ${pin.status === 'error' ? 'text-amber-400' : 'text-sky-400'}`}>
+        moduleNames.map((name, index) => (
+          <div key={`${name}-${index}`} className={`mt-1 font-medium ${pin.status === 'error' ? 'text-amber-400' : 'text-sky-400'}`}>
             {name}
           </div>
         ))

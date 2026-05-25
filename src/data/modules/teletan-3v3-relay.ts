@@ -3,7 +3,8 @@ import type { Module } from '../../models/module'
 const teletan3v3Relay: Module = {
   id: 'teletan-3v3-relay',
   name: 'Teletan 3.3V Relay',
-  requiredPinLabels: ['D5'],
+  type: 'component',
+  requiredPinLabels: ['GPIO'],
   breadboardSpan: 6,
   datasheetUrl: 'https://manuals.plus/asin/B07XGZSYJV.pdf',
 }

@@ -2,18 +2,28 @@ import { z } from 'zod'
 
 export const pinAssignmentSchema = z.object({
   pinId: z.string(),
-  moduleId: z.string(),
+  moduleInstanceId: z.string().optional(),
+  moduleId: z.string().optional(),
 })
 
-export type PinAssignment = z.infer<typeof pinAssignmentSchema>
+export interface PinAssignment {
+  pinId: string
+  moduleInstanceId: string
+}
 
 export const moduleInstanceSchema = z.object({
+  instanceId: z.string().optional(),
   moduleId: z.string(),
   status: z.enum(['healthy', 'error']),
   conflicts: z.array(z.string()),
 })
 
-export type ModuleInstance = z.infer<typeof moduleInstanceSchema>
+export interface ModuleInstance {
+  instanceId: string
+  moduleId: string
+  status: 'healthy' | 'error'
+  conflicts: string[]
+}
 
 export const packageSchema = z.object({
   schemaVersion: z.literal('1.0.0'),

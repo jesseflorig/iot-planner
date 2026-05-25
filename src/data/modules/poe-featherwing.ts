@@ -3,6 +3,7 @@ import type { Module } from '../../models/module'
 const poeFeatherwing: Module = {
   id: 'silicognition-poe-featherwing',
   name: 'Silicognition PoE-FeatherWing',
+  type: 'hat',
   requiredPinLabels: ['SCK', 'MO', 'MI', 'D10', 'SDA', 'SCL'],
   breadboardSpan: 16,
   datasheetUrl: 'https://www.crowdsupply.com/silicognition/poe-featherwing',
