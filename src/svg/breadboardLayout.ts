@@ -69,14 +69,12 @@ export function boardToSvg(board: Board, assignments: PinAssignment[], instances
 export function moduleToSvg(
   module: Module,
   instance: ModuleInstance,
-  index: number,
-  startX = MODULE_OFFSET_X,
+  x = MODULE_OFFSET_X,
+  y = BOARD_OFFSET_Y,
 ): ModuleLayout {
   const width = 120
   const pinRows = module.requiredPinLabels.length * 16
   const height = 12 + 16 + pinRows + 10  // top padding + error-text reserve + pins + bottom
-  const x = startX + index * (width + 16)
-  const y = BOARD_OFFSET_Y
 
   return {
     moduleId: module.id,
@@ -89,10 +87,17 @@ export function moduleToSvg(
   }
 }
 
-export function svgViewBox(board: Board, moduleCount: number, moduleStartX = MODULE_OFFSET_X, originX = 0): string {
-  const moduleWidth = moduleCount > 0 ? moduleCount * (120 + 16) + 20 : 0
+export function svgViewBox(
+  board: Board,
+  moduleCount: number,
+  moduleStartX = MODULE_OFFSET_X,
+  originX = 0,
+  moduleBottomY = 0,
+): string {
+  const moduleWidth = moduleCount > 0 ? 120 + 20 : 0
   const contentRight = moduleCount > 0 ? moduleStartX + moduleWidth : moduleStartX + 40
   const width = contentRight - originX
-  const height = BOARD_OFFSET_Y * 2 + board.headerLength * PIN_SPACING
+  const boardHeight = BOARD_OFFSET_Y * 2 + board.headerLength * PIN_SPACING
+  const height = Math.max(boardHeight, moduleBottomY + BOARD_OFFSET_Y)
   return `${originX} 0 ${width} ${height}`
 }

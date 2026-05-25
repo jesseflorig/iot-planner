@@ -27,6 +27,15 @@ const CONTROL_FNS = new Set(['RESET', 'POWER_EN'])
 const I2C_FNS = new Set(['I2C_SDA', 'I2C_SCL'])
 const SPI_FNS = new Set(['SPI_SCK', 'SPI_MOSI', 'SPI_MISO', 'SPI_CS'])
 const UART_FNS = new Set(['UART_TX', 'UART_RX'])
+const PIN_FUNCTION_NAMES = new Set([
+  'GPIO', 'ADC',
+  'I2C_SDA', 'I2C_SCL',
+  'SPI_SCK', 'SPI_MOSI', 'SPI_MISO', 'SPI_CS',
+  'UART_TX', 'UART_RX',
+  'PWM',
+  'POWER_3V3', 'POWER_5V', 'POWER_BAT', 'POWER_EN',
+  'GND', 'RESET', 'AREF', 'USB_5V',
+])
 
 function pinFunctionColor(fns: string[]): string {
   if (fns.includes('GND'))                    return FUNC_COLORS.gnd
@@ -76,11 +85,16 @@ export function BreadboardView() {
     ? CHAN_START + totalWireChannels * CHAN_STEP + 16
     : MODULE_OFFSET_X
 
-  const allModuleLayouts = moduleInstances.map((inst, idx) => {
+  let nextModuleY = BOARD_OFFSET_Y
+  const MODULE_STACK_GAP = 24
+  const allModuleLayouts = moduleInstances.map(inst => {
     const mod = getModuleById(inst.moduleId)
     if (!mod) return null
-    return { layout: moduleToSvg(mod, inst, idx, moduleStartX), mod, inst }
+    const layout = moduleToSvg(mod, inst, moduleStartX, nextModuleY)
+    nextModuleY += layout.height + MODULE_STACK_GAP
+    return { layout, mod, inst }
   }).filter(Boolean) as { layout: ReturnType<typeof moduleToSvg>; mod: ReturnType<typeof getModuleById> & {}; inst: typeof moduleInstances[number] }[]
+  const moduleBottomY = allModuleLayouts.reduce((max, { layout }) => Math.max(max, layout.y + layout.height), 0)
 
   const pinIdToLabel = new Map(pinLayouts.map(p => [p.id, p.label]))
   const HOP_R           = 4
@@ -90,20 +104,30 @@ export function BreadboardView() {
   const wireSegs: WireSeg[] = []
   let chanIdx = 0
   let chanLeftIdx = 0
+  let maxWireBottomY = BOARD_BOTTOM_Y
 
   for (const { layout, mod, inst } of allModuleLayouts) {
     if (inst.status !== 'healthy') continue
+    const assignedPins = pinLayouts.filter(p => p.moduleIds.includes(mod.id))
+    const usedAssignedPinIds = new Set<string>()
+
     for (let i = 0; i < mod.requiredPinLabels.length; i++) {
-      const label = mod.requiredPinLabels[i]
-      const boardPin = pinLayouts.find(p => p.moduleIds.includes(mod.id) && p.label === label)
+      const requirement = mod.requiredPinLabels[i]
+      const boardPin = assignedPins.find(pin => {
+        if (usedAssignedPinIds.has(pin.id)) return false
+        if (pin.label === requirement) return true
+        return PIN_FUNCTION_NAMES.has(requirement) && pin.functions.includes(requirement)
+      })
       if (!boardPin) continue
-      const wKey = `${mod.id}-${label}`
+      usedAssignedPinIds.add(boardPin.id)
+      const wKey = `${mod.id}-${requirement}-${boardPin.id}`
       const xChan = CHAN_START + chanIdx * CHAN_STEP
       const xLeftChan = X_LEFT_CHAN - chanLeftIdx * CHAN_STEP
       const dotX = layout.x
       const dotY = layout.y + 12 + i * 16
       const isLeft = boardPin.id.startsWith('left')
-      const yBelow = BOARD_BOTTOM_Y + 16
+      const yBelow = isLeft ? BOARD_BOTTOM_Y + 16 + chanLeftIdx * CHAN_STEP : BOARD_BOTTOM_Y + 16
+      maxWireBottomY = Math.max(maxWireBottomY, yBelow)
 
       const raw: Array<['h' | 'v', number, number, number, number]> = isLeft ? [
         ['h', boardPin.x, boardPin.y, xLeftChan, boardPin.y],
@@ -187,7 +211,8 @@ export function BreadboardView() {
   })
 
   const originX = chanLeftIdx > 0 ? X_LEFT_CHAN - (chanLeftIdx - 1) * CHAN_STEP - 8 : 0
-  const viewBox = svgViewBox(board, moduleInstances.length, moduleStartX, originX)
+  const contentBottomY = Math.max(moduleBottomY, maxWireBottomY)
+  const viewBox = svgViewBox(board, moduleInstances.length, moduleStartX, originX, contentBottomY)
 
   return (
     <div className="relative w-full h-full overflow-auto bg-zinc-900">
