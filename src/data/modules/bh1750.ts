@@ -2,7 +2,7 @@ import type { Module } from '../../models/module'
 
 const bh1750: Module = {
   id: 'hiletgo-gy-302-bh1750',
-  name: 'GY-302 BH1750 Light',
+  name: 'GY-302 BH1750',
   manufacturer: 'HiLetgo',
   type: 'component',
   requiredPinLabels: ['I2C_SDA', 'I2C_SCL'],
