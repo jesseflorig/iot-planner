@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const moduleSchema = z.object({
   id: z.string(),
   name: z.string(),
+  manufacturer: z.string().optional(),
   type: z.enum(['component', 'hat']),
   requiredPinLabels: z.array(z.string()).min(1),
   breadboardSpan: z.number().int().min(1),

@@ -5,7 +5,8 @@ import type { Board } from '../../models/board'
 // Verify from KiCAD files at https://github.com/xorbit/RP2040-Shim before release.
 const rp2040Shim: Board = {
   id: 'silicognition-rp2040-shim',
-  name: 'Silicognition RP2040 Shim',
+  name: 'RP2040 Shim',
+  manufacturer: 'Silicognition',
   headerLength: 16,
   breadboardSpan: 12,
   datasheetUrl: 'https://www.silicognition.com/products/rp2040-shim',

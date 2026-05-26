@@ -3,6 +3,7 @@ import type { Module } from '../../models/module'
 const maxM10s00b01: Module = {
   id: 'max-m10s-00b-01',
   name: 'MAX-M10S-00B-01',
+  manufacturer: 'u-blox',
   type: 'component',
   requiredPinLabels: ['UART_RX', 'UART_TX'],
   breadboardSpan: 8,

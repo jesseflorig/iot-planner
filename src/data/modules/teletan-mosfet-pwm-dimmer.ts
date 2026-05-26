@@ -2,7 +2,8 @@ import type { Module } from '../../models/module'
 
 const teletanMosfetPwmDimmer: Module = {
   id: 'teletan-mosfet-pwm-dimmer',
-  name: 'Teletan MOSFET PWM Dimmer',
+  name: 'MOSFET PWM Dimmer',
+  manufacturer: 'Teletan',
   type: 'component',
   requiredPinLabels: ['PWM'],
   breadboardSpan: 8,

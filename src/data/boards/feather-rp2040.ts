@@ -2,7 +2,8 @@ import type { Board } from '../../models/board'
 
 const featherRp2040: Board = {
   id: 'adafruit-feather-rp2040',
-  name: 'Adafruit Feather RP2040',
+  name: 'Feather RP2040',
+  manufacturer: 'Adafruit',
   headerLength: 16,
   breadboardSpan: 16,
   datasheetUrl: 'https://learn.adafruit.com/adafruit-feather-rp2040-pico/pinouts',
