@@ -270,7 +270,12 @@ export function BreadboardView() {
 
         {/* Module overlays */}
         {allModuleLayouts.map(({ layout, mod, inst }) => {
-          const conflictLabels = new Set(inst.conflicts.map(id => pinIdToLabel.get(id) ?? id))
+          const conflictRequirements = new Set(
+            inst.conflicts.map(conflict => {
+              if (conflict.startsWith('missing:')) return conflict.slice('missing:'.length)
+              return pinIdToLabel.get(conflict) ?? conflict
+            }),
+          )
           return (
             <g key={inst.instanceId}>
               <rect
@@ -293,7 +298,7 @@ export function BreadboardView() {
                 </text>
               )}
               {mod.requiredPinLabels.map((label, i) => {
-                const isConflict = conflictLabels.has(label)
+                const isConflict = conflictRequirements.has(label)
                 const dotColor = isConflict ? '#f59e0b' : '#0ea5e9'
                 const labelColor = isConflict ? '#f59e0b' : '#71717a'
                 const rowY = layout.y + (inst.status === 'error' ? 24 : 12) + i * 16
