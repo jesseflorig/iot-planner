@@ -39,10 +39,11 @@ export function ActiveModules() {
               </div>
               <button
                 onClick={() => removeModule(inst.instanceId)}
-                className="shrink-0 text-xs px-2 py-0.5 rounded border border-zinc-600 text-zinc-400 hover:border-red-500 hover:text-red-400 transition-colors"
+                className="shrink-0 inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-600 text-zinc-400 transition-colors hover:border-red-500 hover:text-red-400"
                 aria-label={`Remove ${name}`}
+                title={`Remove ${name}`}
               >
-                Remove
+                <span aria-hidden="true" className="text-sm leading-none font-medium">×</span>
               </button>
             </li>
           )
