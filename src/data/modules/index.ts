@@ -1,3 +1,4 @@
+import bh1750 from './bh1750'
 import dht22 from './dht22'
 import maxM10s00b01 from './max-m10s-00b-01'
 import poeFeatherwing from './poe-featherwing'
@@ -6,6 +7,7 @@ import teletanMosfetPwmDimmer from './teletan-mosfet-pwm-dimmer'
 import type { Module } from '../../models/module'
 
 export const MODULES: Module[] = [
+  bh1750,
   dht22,
   maxM10s00b01,
   poeFeatherwing,
